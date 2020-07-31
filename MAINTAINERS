@@ -11680,6 +11680,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/gpio/hisilicon,ascend910-gpio.yaml
 F:	drivers/gpio/gpio-hisi.c
 
+HISILICON KIRIN 3670 DMA DRIVER
+M:	Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
+L:	dmaengine@vger.kernel.org
+S:	Maintained
+F:	drivers/dma/drivers/dma/hisi_dma_64.c
+
 HISILICON HIGH PERFORMANCE RSA ENGINE DRIVER (HPRE)
 M:	Zhiqi Song <songzhiqi1@huawei.com>
 M:	Longfang Liu <liulongfang@huawei.com>
