@@ -15,7 +15,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <drm/drmP.h>
 
 #include "kirin_drm_drv.h"
 

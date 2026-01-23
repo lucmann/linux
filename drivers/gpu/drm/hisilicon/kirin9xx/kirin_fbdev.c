@@ -15,7 +15,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <drm/drmP.h>
 #include <drm_crtc_helper.h>
 
 #include <linux/ion.h>

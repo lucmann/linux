@@ -10,7 +10,6 @@
 * GNU General Public License for more details.
 *
 */
-#include <drm/drmP.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>

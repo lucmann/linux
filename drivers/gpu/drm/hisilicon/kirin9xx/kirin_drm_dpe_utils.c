@@ -10,7 +10,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <drm/drmP.h>
 
 #include "drm_mipi_dsi.h"
 #include "kirin_drm_dpe_utils.h"
