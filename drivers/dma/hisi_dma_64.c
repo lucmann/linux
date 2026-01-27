@@ -940,14 +940,14 @@ of_dma_register_fail:
 	return ret;
 }
 
-static int hisi_dma_remove(struct platform_device *op)
+static void hisi_dma_remove(struct platform_device *op)
 {
 	struct hisi_dma_chan *c, *cn;
 	struct hisi_dma_dev *d = platform_get_drvdata(op);
 
 	if (!d) {
 		pr_err("%s: get drvdata failed\n", __func__);
-		return -EINVAL;
+		return;
 	}
 
 	dma_async_device_unregister(&d->slave);
@@ -960,8 +960,6 @@ static int hisi_dma_remove(struct platform_device *op)
 	tasklet_kill(&d->task);
 
 	clk_disable_unprepare(d->clk);
-
-	return 0;
 }
 
 static int __maybe_unused hisi_dma_pltfm_suspend(struct device *dev)
