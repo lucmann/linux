@@ -18,7 +18,7 @@
 #include "kirin9xx_drm_dpe_utils.h"
 #include "kirin9xx_dpe.h"
 
-DEFINE_SEMAPHORE(hisi_fb_dss_regulator_sem);
+DEFINE_SEMAPHORE(hisi_fb_dss_regulator_sem, 1);
 
 struct mipi_ifbc_division g_mipi_ifbc_division[MIPI_DPHY_NUM][IFBC_TYPE_MAX] = {
 	/*single mipi*/
