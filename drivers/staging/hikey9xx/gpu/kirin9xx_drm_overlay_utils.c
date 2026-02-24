@@ -19,6 +19,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -833,7 +834,7 @@ void hisi_fb_pan_display(struct drm_plane *plane)
 	struct dss_crtc *acrtc = aplane->acrtc;
 	struct dss_hw_ctx *ctx = acrtc->ctx;
 
-	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(state->fb, 0);
+	struct drm_gem_dma_object *obj = drm_fb_dma_get_gem_obj(state->fb, 0);
 
 	bool afbcd = false;
 	bool mmu_enable = false;
@@ -861,7 +862,7 @@ void hisi_fb_pan_display(struct drm_plane *plane)
 	bpp = fb->format->cpp[0];
 	stride = fb->pitches[0];
 
-	display_addr = (u32)obj->paddr + src_y * stride;
+	display_addr = (u32)obj->dma_addr + src_y * stride;
 
 	rect.left = 0;
 	rect.right = src_w - 1;

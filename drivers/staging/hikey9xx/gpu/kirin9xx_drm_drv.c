@@ -18,6 +18,7 @@
 #include <linux/of_platform.h>
 #include <linux/component.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -125,13 +126,13 @@ err_mode_config_cleanup:
 	return ret;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(kirin_drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(kirin_drm_fops);
 
-static int kirin_gem_cma_dumb_create(struct drm_file *file,
+static int kirin_gem_dma_dumb_create(struct drm_file *file,
 				     struct drm_device *dev,
 				     struct drm_mode_create_dumb *args)
 {
-	return drm_gem_cma_dumb_create_internal(file, dev, args);
+	return drm_gem_dma_dumb_create_internal(file, dev, args);
 }
 
 static int kirin_drm_connectors_register(struct drm_device *dev)
@@ -167,29 +168,21 @@ err:
 }
 
 static struct drm_driver kirin_drm_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
-				  DRIVER_ATOMIC | DRIVER_RENDER,
-	.fops				= &kirin_drm_fops,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
+			   DRIVER_RENDER,
+	.fops = &kirin_drm_fops,
 
-	.gem_free_object	= drm_gem_cma_free_object,
-	.gem_vm_ops		= &drm_gem_cma_vm_ops,
-	.dumb_create		= kirin_gem_cma_dumb_create,
+	.dumb_create = kirin_gem_dma_dumb_create,
 
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= drm_gem_prime_export,
-	.gem_prime_import	= drm_gem_prime_import,
-	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_import_sg_table = drm_gem_dma_prime_import_sg_table,
 
-	.name			= "kirin9xx",
-	.desc			= "Hisilicon Kirin9xx SoCs' DRM Driver",
-	.date			= "20170309",
-	.major			= 1,
-	.minor			= 0,
+	.name = "kirin9xx",
+	.desc = "Hisilicon Kirin9xx SoCs' DRM Driver",
+	.major = 1,
+	.minor = 0,
 };
 
 static int compare_of(struct device *dev, void *data)
@@ -208,6 +201,10 @@ static int kirin_drm_bind(struct device *dev)
 	if (!drm_dev)
 		return -ENOMEM;
 
+	DRM_INFO("luc Initialized %s %d.%d.%d on minor %d\n", driver->name,
+		 driver->major, driver->minor, driver->patchlevel,
+		 drm_dev->primary->index);
+
 	ret = kirin_drm_kms_init(drm_dev);
 	if (ret)
 		goto err_drm_dev_unref;
@@ -216,7 +213,6 @@ static int kirin_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_cleanup;
 
-	drm_fbdev_generic_setup(drm_dev, 32);
 	priv = drm_dev->dev_private;
 
 	/* connectors should be registered after drm device register */
@@ -224,9 +220,9 @@ static int kirin_drm_bind(struct device *dev)
 	if (ret)
 		goto err_drm_dev_unregister;
 
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
-		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, drm_dev->primary->index);
+	DRM_INFO("Initialized %s %d.%d.%d on minor %d\n", driver->name,
+		 driver->major, driver->minor, driver->patchlevel,
+		 drm_dev->primary->index);
 
 	return 0;
 
@@ -284,23 +280,24 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
 
-static int kirin_drm_platform_remove(struct platform_device *pdev)
+static void kirin_drm_platform_remove(struct platform_device *pdev)
 {
 	static struct kirin_dc_ops const *dc_ops;
 
 	dc_ops = of_device_get_match_data(&pdev->dev);
 	component_master_del(&pdev->dev, &kirin_drm_ops);
-	return 0;
 }
 
-static int kirin_drm_platform_suspend(struct platform_device *pdev, pm_message_t state)
+static int kirin_drm_platform_suspend(struct platform_device *pdev,
+				      pm_message_t state)
 {
 	static struct kirin_dc_ops const *dc_ops;
 	struct device *dev = &pdev->dev;
 
 	dc_ops = of_device_get_match_data(dev);
 
-	DRM_INFO("+. pdev->name is %s, m_message is %d\n", pdev->name, state.event);
+	DRM_INFO("+. pdev->name is %s, m_message is %d\n", pdev->name,
+		 state.event);
 	if (!dc_ops) {
 		DRM_ERROR("dc_ops is NULL\n");
 		return -EINVAL;
@@ -327,11 +324,13 @@ static int kirin_drm_platform_resume(struct platform_device *pdev)
 }
 
 static const struct of_device_id kirin_drm_dt_ids[] = {
-	{ .compatible = "hisilicon,hi3660-dpe",
-	  .data = &kirin960_dss_dc_ops,
+	{
+		.compatible = "hisilicon,hi3660-dpe",
+		.data = &kirin960_dss_dc_ops,
 	},
-	{ .compatible = "hisilicon,kirin970-dpe",
-	  .data = &kirin970_dss_dc_ops,
+	{
+		.compatible = "hisilicon,kirin970-dpe",
+		.data = &kirin970_dss_dc_ops,
 	},
 	{ /* end node */ },
 };
