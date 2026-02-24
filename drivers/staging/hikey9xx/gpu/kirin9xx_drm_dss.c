@@ -33,6 +33,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
@@ -526,7 +527,7 @@ static bool dss_crtc_mode_fixup(struct drm_crtc *crtc,
 }
 
 static void dss_crtc_enable(struct drm_crtc *crtc,
-			    struct drm_crtc_state *old_state)
+			    struct drm_atomic_state *old_state)
 {
 	struct dss_crtc *acrtc = to_dss_crtc(crtc);
 	struct dss_hw_ctx *ctx = acrtc->ctx;
@@ -546,7 +547,7 @@ static void dss_crtc_enable(struct drm_crtc *crtc,
 }
 
 static void dss_crtc_disable(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_state)
+			     struct drm_atomic_state *old_state)
 {
 	struct dss_crtc *acrtc = to_dss_crtc(crtc);
 
@@ -569,7 +570,7 @@ static void dss_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void dss_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *old_state)
 {
 	struct dss_crtc *acrtc = to_dss_crtc(crtc);
 	struct dss_hw_ctx *ctx = acrtc->ctx;
@@ -579,7 +580,7 @@ static void dss_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void dss_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *old_state)
 
 {
 	struct drm_pending_vblank_event *event = crtc->state->event;
@@ -649,19 +650,21 @@ static int dss_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 }
 
 static int dss_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_atomic_state *state)
 {
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct drm_framebuffer *fb = new_plane_state->fb;
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	u32 src_x = state->src_x >> 16;
-	u32 src_y = state->src_y >> 16;
-	u32 src_w = state->src_w >> 16;
-	u32 src_h = state->src_h >> 16;
-	int crtc_x = state->crtc_x;
-	int crtc_y = state->crtc_y;
-	u32 crtc_w = state->crtc_w;
-	u32 crtc_h = state->crtc_h;
+	u32 src_x = new_plane_state->src_x >> 16;
+	u32 src_y = new_plane_state->src_y >> 16;
+	u32 src_w = new_plane_state->src_w >> 16;
+	u32 src_h = new_plane_state->src_h >> 16;
+	int crtc_x = new_plane_state->crtc_x;
+	int crtc_y = new_plane_state->crtc_y;
+	u32 crtc_w = new_plane_state->crtc_w;
+	u32 crtc_h = new_plane_state->crtc_h;
 	u32 fmt;
 
 	if (!crtc || !fb)
@@ -671,7 +674,7 @@ static int dss_plane_atomic_check(struct drm_plane *plane,
 	if (fmt == HISI_FB_PIXEL_FORMAT_UNSUPPORT)
 		return -EINVAL;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_crtc_state(new_plane_state->state, crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
@@ -695,7 +698,7 @@ static int dss_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void dss_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
 
@@ -708,7 +711,7 @@ static void dss_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void dss_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *old_state)
 {
 	// FIXME: Maybe this?
 #if 0

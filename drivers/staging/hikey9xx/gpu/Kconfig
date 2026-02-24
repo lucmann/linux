@@ -17,6 +17,6 @@ config DRM_HISI_KIRIN970
 	  Choose this option if you have a hisilicon Kirin chipsets(kirin970).
 
 config DRM_HISI_KIRIN9XX_DSI
-	tristate
+	tristate "Enable DSI support for Hisilicon Kirin970"
 	depends on DRM_HISI_KIRIN9XX
 	default y
