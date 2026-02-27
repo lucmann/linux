@@ -1338,12 +1338,12 @@ static void dsi_encoder_disable(struct drm_encoder *encoder)
 
 	dw_dsi_set_mode(dsi, DSI_COMMAND_MODE);
 	/* turn off panel's backlight */
-	if (dsi->panel && drm_panel_disable(dsi->panel))
-		DRM_ERROR("failed to disable panel\n");
+	if (dsi->panel)
+		drm_panel_disable(dsi->panel);
 
 	/* turn off panel */
-	if (dsi->panel && drm_panel_unprepare(dsi->panel))
-		DRM_ERROR("failed to unprepare panel\n");
+	if (dsi->panel)
+		drm_panel_unprepare(dsi->panel);
 
 	writel(0, base + PWR_UP);
 	writel(0, base + LPCLK_CTRL);
@@ -1445,14 +1445,14 @@ static void dsi_encoder_enable(struct drm_encoder *encoder)
 	mipi_dsi_on_sub2(dsi, ctx->base);
 
 	/* turn on panel */
-	if (dsi->panel && drm_panel_prepare(dsi->panel))
-		DRM_ERROR("failed to prepare panel\n");
+	if (dsi->panel)
+		drm_panel_prepare(dsi->panel);
 
 	/*dw_dsi_set_mode(dsi, DSI_VIDEO_MODE);*/
 
 	/* turn on panel's back light */
-	if (dsi->panel && drm_panel_enable(dsi->panel))
-		DRM_ERROR("failed to enable panel\n");
+	if (dsi->panel)
+		drm_panel_enable(dsi->panel);
 
 	dsi->enable = true;
 }
@@ -1747,7 +1747,7 @@ static int dsi_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 dsi_connector_mode_valid(struct drm_connector *connector,
-			 struct drm_display_mode *mode)
+			 const struct drm_display_mode *mode)
 {
 	enum drm_mode_status mode_status = MODE_OK;
 
@@ -1816,9 +1816,7 @@ static int dsi_connector_init(struct drm_device *dev, struct dw_dsi *dsi)
 	if (ret)
 		return ret;
 
-	ret = drm_panel_attach(dsi->panel, connector);
-	if (ret)
-		return ret;
+	drm_panel_add(dsi->panel);
 
 	drm_connector_register(&dsi->connector);
 
@@ -1874,6 +1872,7 @@ static int dsi_parse_bridge_endpoint(struct dw_dsi *dsi,
 
 	bridge = of_drm_find_bridge(bridge_node);
 	if (!bridge) {
+		DRM_INFO("the bridge node is %s\n", bridge_node->name);
 		DRM_INFO("wait for external HDMI bridge driver.\n");
 		return -EPROBE_DEFER;
 	}
@@ -2098,11 +2097,9 @@ err_host_unregister:
 	return ret;
 }
 
-static int dsi_remove(struct platform_device *pdev)
+static void dsi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &dsi_ops);
-
-	return 0;
 }
 
 static const struct of_device_id dsi_of_match[] = {
