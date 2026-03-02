@@ -109,6 +109,8 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
 
+	dsi_set_output_client(dev);
+
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 
@@ -272,11 +274,10 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 
 	DRM_INFO("the device remote node is %s\n", remote->name);
 
-	drm_of_component_match_add(dev, &match, compare_of, remote);
+	drm_of_component_match_add(dev, &match, component_compare_of, remote);
 	of_node_put(remote);
 
-	if (ret)
-		DRM_ERROR("cma device init failed!");
+	DRM_ERROR("luc cma device init failed!");
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
 
