@@ -20,11 +20,13 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_dma_helper.h>
+#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
@@ -173,14 +175,8 @@ static struct drm_driver kirin_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_RENDER,
 	.fops = &kirin_drm_fops,
-
-	.dumb_create = kirin_gem_dma_dumb_create,
-
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_import_sg_table = drm_gem_dma_prime_import_sg_table,
-
+	DRM_GEM_DMA_DRIVER_OPS,
+	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name = "kirin9xx",
 	.desc = "Hisilicon Kirin9xx SoCs' DRM Driver",
 	.major = 1,
@@ -215,6 +211,7 @@ static int kirin_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_cleanup;
 
+	drm_client_setup(drm_dev, NULL);
 	priv = drm_dev->dev_private;
 
 	/* connectors should be registered after drm device register */
