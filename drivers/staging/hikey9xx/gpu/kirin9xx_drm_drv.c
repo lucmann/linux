@@ -274,7 +274,6 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	drm_of_component_match_add(dev, &match, component_compare_of, remote);
 	of_node_put(remote);
 
-	DRM_ERROR("luc cma device init failed!");
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
 
