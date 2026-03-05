@@ -111,8 +111,6 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
 
-	dsi_set_output_client(dev);
-
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 
@@ -188,11 +186,33 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+static int kirin_mux_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_device *dev = client->dev;
+
+	DRM_INFO("%s\n", __func__);
+	dsi_set_output_client(dev);
+
+	return 0;
+}
+
+static void kirin_mux_client_unregister(struct drm_client_dev *client)
+{
+	kfree(client);
+}
+
+static const struct drm_client_funcs kirin_mux_client_funcs = {
+	.owner = THIS_MODULE,
+	.hotplug = kirin_mux_client_hotplug,
+	.unregister = kirin_mux_client_unregister,
+};
+
 static int kirin_drm_bind(struct device *dev)
 {
 	struct drm_driver *driver = &kirin_drm_driver;
 	struct drm_device *drm_dev;
 	struct kirin_drm_private *priv;
+	struct drm_client_dev *mux_client;
 	int ret;
 
 	drm_dev = drm_dev_alloc(driver, dev);
@@ -213,6 +233,23 @@ static int kirin_drm_bind(struct device *dev)
 
 	drm_client_setup(drm_dev, NULL);
 	priv = drm_dev->dev_private;
+	
+	mux_client = kzalloc(sizeof(*mux_client), GFP_KERNEL);
+	
+	if (!mux_client) {
+		ret = -ENOMEM;
+		goto err_drm_dev_unregister;
+	}
+	
+	ret = drm_client_init(drm_dev, mux_client, "kirin_mux_client", &kirin_mux_client_funcs);
+	if (ret) {
+		kfree(mux_client);
+		DRM_WARN("Failed to initialize mux client: %d\n", ret);
+	} else {
+		drm_client_register(mux_client);
+		priv->mux_client = mux_client;
+		DRM_INFO("kirin_mux_client registered\n");
+	}
 
 	/* connectors should be registered after drm device register */
 	ret = kirin_drm_connectors_register(drm_dev);
