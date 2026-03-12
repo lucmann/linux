@@ -1366,8 +1366,10 @@ static int mipi_dsi_on_sub1(struct dw_dsi *dsi, char __iomem *mipi_dsi_base,
 	dsi_mipi_init(dsi, mipi_dsi_base, id);
 
 	/* dsi memory init */
-	if (ctx->g_dss_version_tag == FB_ACCEL_KIRIN970)
+	if (ctx->g_dss_version_tag == FB_ACCEL_KIRIN970) {
 		writel(0x02600008, mipi_dsi_base + KIRIN970_DSI_MEM_CTRL);
+		DRM_INFO("dsi memory init\n");
+	}
 
 	/* switch to cmd mode */
 	set_reg(mipi_dsi_base + MIPIDSI_MODE_CFG_OFFSET, 0x1, 1, 0);
