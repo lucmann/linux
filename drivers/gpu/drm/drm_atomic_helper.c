@@ -1724,7 +1724,7 @@ drm_atomic_helper_commit_encoder_bridge_enable(struct drm_device *dev, struct dr
 		encoder = new_conn_state->best_encoder;
 		funcs = encoder->helper_private;
 
-		drm_dbg_atomic(dev, "enabling [ENCODER:%d:%s]\n",
+		drm_dbg_atomic(dev, ">>>>>>>>> luc >>>>>>>>>>>>>> enabling [ENCODER:%d:%s]\n",
 			       encoder->base.id, encoder->name);
 
 		/*
