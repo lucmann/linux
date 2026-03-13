@@ -13,6 +13,7 @@
 			<0 0xE87FF000 0 0x1000>;
 		// dss-pdp
 		interrupts = <0 245 4>;
+		ldo3-supply = <&ldo3>;
 
 		clocks = <&media1_crg HI3670_ACLK_GATE_DSS>,
 			<&media1_crg HI3670_PCLK_GATE_DSS>,
