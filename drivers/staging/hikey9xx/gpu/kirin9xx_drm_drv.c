@@ -117,6 +117,7 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* force detection after connectors init */
 	drm_helper_hpd_irq_event(dev);
 
+	dsi_set_output_client(dev);
 	return 0;
 
 err_unbind_all:
@@ -226,6 +227,23 @@ static int kirin_drm_bind(struct device *dev)
 		 driver->major, driver->minor, driver->patchlevel,
 		 drm_dev->primary->index);
 
+	// mux_client = kzalloc(sizeof(*mux_client), GFP_KERNEL);
+	
+	// if (!mux_client) {
+	// 	ret = -ENOMEM;
+	// 	goto err_drm_dev_unregister;
+	// }
+	
+	// ret = drm_client_init(drm_dev, mux_client, "kirin_mux_client", &kirin_mux_client_funcs);
+	// if (ret) {
+	// 	kfree(mux_client);
+	// 	DRM_WARN("Failed to initialize mux client: %d\n", ret);
+	// } else {
+	// 	drm_client_register(mux_client);
+	// 	priv->mux_client = mux_client;
+	// 	DRM_INFO("kirin_mux_client registered\n");
+	// }
+
 	ret = kirin_drm_kms_init(drm_dev);
 	if (ret)
 		goto err_drm_dev_unref;
@@ -237,23 +255,6 @@ static int kirin_drm_bind(struct device *dev)
 	drm_client_setup(drm_dev, NULL);
 	priv = drm_dev->dev_private;
 	
-	mux_client = kzalloc(sizeof(*mux_client), GFP_KERNEL);
-	
-	if (!mux_client) {
-		ret = -ENOMEM;
-		goto err_drm_dev_unregister;
-	}
-	
-	ret = drm_client_init(drm_dev, mux_client, "kirin_mux_client", &kirin_mux_client_funcs);
-	if (ret) {
-		kfree(mux_client);
-		DRM_WARN("Failed to initialize mux client: %d\n", ret);
-	} else {
-		drm_client_register(mux_client);
-		priv->mux_client = mux_client;
-		DRM_INFO("kirin_mux_client registered\n");
-	}
-
 	/* connectors should be registered after drm device register */
 	ret = kirin_drm_connectors_register(drm_dev);
 	if (ret)
