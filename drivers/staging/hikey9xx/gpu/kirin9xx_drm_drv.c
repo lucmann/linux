@@ -312,7 +312,7 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 
 	DRM_INFO("the device remote node is %s\n", remote->name);
 
-	drm_of_component_match_add(dev, &match, component_compare_of, remote);
+	drm_of_component_match_add(dev, &match, compare_of, remote);
 	of_node_put(remote);
 
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
