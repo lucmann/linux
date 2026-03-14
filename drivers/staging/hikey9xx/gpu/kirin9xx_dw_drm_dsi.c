@@ -220,6 +220,7 @@ struct ldi_panel_info {
 
 struct dw_dsi {
 	struct drm_encoder encoder;
+	struct device *dev;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	struct mipi_dsi_host host;
@@ -1523,19 +1524,16 @@ static const struct drm_encoder_funcs dw_encoder_funcs = {
 
 static int dw_drm_encoder_init(struct device *dev,
 			       struct drm_device *drm_dev,
-			       struct drm_encoder *encoder,
-			       struct drm_bridge *bridge)
+			       struct drm_encoder *encoder)
 {
+	struct drm_bridge *bridge;
+	struct dsi_data *ddata = dev_get_drvdata(dev);
+	struct dw_dsi *dsi = &ddata->dsi;
+	struct device_node *np = dsi->dev->of_node;
 	int ret;
 	u32 crtc_mask;
 
 	dev_info(dev, "%s:\n", __func__);
-
-	/* Link drm_bridge to encoder */
-	if (!bridge) {
-		DRM_INFO("no dsi bridge to attach the encoder\n");
-		return 0;
-	}
 
 	crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 	if (!crtc_mask) {
@@ -1557,6 +1555,15 @@ static int dw_drm_encoder_init(struct device *dev,
 
 	drm_encoder_helper_add(encoder, &dw_encoder_helper_funcs);
 
+	ret = drm_of_find_panel_or_bridge(np, 1 /* port */, 0 /* endpoint */, NULL /* panel */, &bridge);	
+	if (ret) {
+		DRM_ERROR("failed to find external panel or bridge\n");
+		drm_encoder_cleanup(encoder);
+		return ret;
+	}
+
+	dsi->bridge = bridge;
+
 	/* associate the bridge to dsi encoder */
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret) {
@@ -1567,10 +1574,13 @@ static int dw_drm_encoder_init(struct device *dev,
 	return ret;
 }
 
+static const struct component_ops dsi_ops;
 static int dsi_host_attach(struct mipi_dsi_host *host,
 			   struct mipi_dsi_device *mdsi)
 {
 	struct dw_dsi *dsi = host_to_dsi(host);
+	struct device *dev = host->dev;
+	int ret;
 	u32 id = mdsi->channel >= 1 ? OUT_PANEL : OUT_HDMI;
 
 	if (mdsi->lanes < 1 || mdsi->lanes > 4) {
@@ -1585,6 +1595,10 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 
 	dsi->attached_client = id;
 
+	ret = component_add(dev, &dsi_ops);
+	if (ret)
+		return ret;
+
 	DRM_INFO("host attach, client name=[%s], id=%d\n", mdsi->name, id);
 
 	return 0;
@@ -1594,6 +1608,10 @@ static int dsi_host_detach(struct mipi_dsi_host *host,
 			   struct mipi_dsi_device *mdsi)
 {
 	/* do nothing */
+	struct device *dev = host->dev;
+
+	component_del(dev, &dsi_ops);
+
 	return 0;
 }
 
@@ -1835,8 +1853,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	DRM_INFO("dsi_bind\n");
 
-	ret = dw_drm_encoder_init(dev, drm_dev, &dsi->encoder,
-				  dsi->bridge);
+	ret = dw_drm_encoder_init(dev, drm_dev, &dsi->encoder);
 	if (ret)
 		return ret;
 
@@ -1876,7 +1893,8 @@ static int dsi_parse_bridge_endpoint(struct dw_dsi *dsi,
 	if (!bridge) {
 		DRM_INFO("the bridge node is %s\n", bridge_node->name);
 		DRM_INFO("wait for external HDMI bridge driver.\n");
-		return -EPROBE_DEFER;
+		DRM_INFO("since probe order adjusted, defer this to dsi_bind() -> dw_drm_encoder_init()\n");
+		return 0;
 	}
 	dsi->bridge = bridge;
 
@@ -1932,8 +1950,9 @@ static int dsi_parse_endpoint(struct dw_dsi *dsi,
 		if (client == OUT_HDMI) {
 			if (ep.id == 0) {
 				ret = dsi_parse_bridge_endpoint(dsi, ep_node);
-				if (dsi->bridge)
-					break;
+				/* As we adjust probe order to avoid DSI probe issue, we are happy to be early out */
+				if (dsi->bridge || !ret)
+					return ret;
 			}
 		} else { /* parse panel endpoint */
 			if (ep.id > 0) {
@@ -2065,6 +2084,7 @@ static int dsi_probe(struct platform_device *pdev)
 	dsi = &data->dsi;
 	ctx = &data->ctx;
 	dsi->ctx = ctx;
+	dsi->dev = &pdev->dev;
 
 	ctx->g_dss_version_tag = (long)of_device_get_match_data(dev);
 
@@ -2073,35 +2093,26 @@ static int dsi_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = dsi_host_init(dev, dsi);
-	if (ret)
-		return ret;
-
 	/* parse panel endpoint */
 	ret = dsi_parse_endpoint(dsi, np, OUT_PANEL);
 	if (ret)
-		goto err_host_unregister;
+		return ret;
 
 	ret = dsi_parse_dt(pdev, dsi);
 	if (ret)
-		goto err_host_unregister;
+		return ret;
 
 	platform_set_drvdata(pdev, data);
 
-	ret = component_add(dev, &dsi_ops);
-	if (ret)
-		goto err_host_unregister;
-
-	return 0;
-
-err_host_unregister:
-	mipi_dsi_host_unregister(&dsi->host);
-	return ret;
+	return dsi_host_init(&pdev->dev, dsi);
 }
 
 static void dsi_remove(struct platform_device *pdev)
 {
-	component_del(&pdev->dev, &dsi_ops);
+	struct dsi_data *data = platform_get_drvdata(pdev);
+	struct dw_dsi *dsi = &data->dsi;
+
+	mipi_dsi_host_unregister(&dsi->host);
 }
 
 static const struct of_device_id dsi_of_match[] = {
