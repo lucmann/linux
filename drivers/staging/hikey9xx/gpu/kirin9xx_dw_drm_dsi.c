@@ -1889,14 +1889,14 @@ static int dsi_parse_bridge_endpoint(struct dw_dsi *dsi,
 	}
 	of_node_put(bridge_node);
 
+	DRM_INFO("the bridge node is %s\n", __func__);
 	bridge = of_drm_find_bridge(bridge_node);
+	dsi->bridge = bridge;
 	if (!bridge) {
-		DRM_INFO("the bridge node is %s\n", bridge_node->name);
 		DRM_INFO("wait for external HDMI bridge driver.\n");
 		DRM_INFO("since probe order adjusted, defer this to dsi_bind() -> dw_drm_encoder_init()\n");
 		return 0;
 	}
-	dsi->bridge = bridge;
 
 	return 0;
 }
@@ -1951,8 +1951,8 @@ static int dsi_parse_endpoint(struct dw_dsi *dsi,
 			if (ep.id == 0) {
 				ret = dsi_parse_bridge_endpoint(dsi, ep_node);
 				/* As we adjust probe order to avoid DSI probe issue, we are happy to be early out */
-				if (dsi->bridge || !ret)
-					return ret;
+				if (!dsi->bridge)
+					break;
 			}
 		} else { /* parse panel endpoint */
 			if (ep.id > 0) {
@@ -1970,7 +1970,7 @@ static int dsi_parse_endpoint(struct dw_dsi *dsi,
 
 	if (!dsi->bridge && !dsi->panel) {
 		DRM_ERROR("at least one bridge or panel node is required\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	return 0;
