@@ -2088,23 +2088,17 @@ static int dsi_probe(struct platform_device *pdev)
 
 	ctx->g_dss_version_tag = (long)of_device_get_match_data(dev);
 
-	/* parse HDMI bridge endpoint */
-	ret = dsi_parse_endpoint(dsi, np, OUT_HDMI);
-	if (ret)
-		return ret;
-
-	/* parse panel endpoint */
-	ret = dsi_parse_endpoint(dsi, np, OUT_PANEL);
-	if (ret)
-		return ret;
-
 	ret = dsi_parse_dt(pdev, dsi);
 	if (ret)
 		return ret;
 
 	platform_set_drvdata(pdev, data);
 
-	return dsi_host_init(&pdev->dev, dsi);
+	ret = dsi_host_init(&pdev->dev, dsi);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static void dsi_remove(struct platform_device *pdev)
