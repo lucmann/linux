@@ -117,7 +117,8 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* force detection after connectors init */
 	drm_helper_hpd_irq_event(dev);
 
-	dsi_set_output_client(dev);
+	// dsi_set_output_client(dev);
+	DRM_INFO("%s ok\n", __func__);
 	return 0;
 
 err_unbind_all:
