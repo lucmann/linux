@@ -470,7 +470,7 @@
 	status = "okay";
 
 	adv7533: adv7533@39 {
-		compatible = "adi,adv7533";
+		compatible = "adi,adv7535";
 		reg = <0x39>, <0x3f>, <0x3c>, <0x38>;
 		reg-names = "main", "edid", "cec", "packet";
 		v1p2-supply = <&ldo3>;
