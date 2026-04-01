@@ -650,6 +650,9 @@ adv7511_detect(struct adv7511 *adv7511)
 	}
 
 	adv7511->status = status;
+
+	/* Temporary workaround */
+	adv7511_power_on(adv7511);
 	return status;
 }
 
