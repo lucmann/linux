@@ -1563,6 +1563,11 @@ static int dw_drm_encoder_init(struct device *dev,
 	}
 
 	dsi->bridge = bridge;
+	ret = devm_drm_bridge_add(dev, bridge);
+	if (ret) {
+		DRM_ERROR("failed to add external bridge\n");
+		return ret;
+	}
 
 	/* associate the bridge to dsi encoder */
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
