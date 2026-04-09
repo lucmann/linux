@@ -616,7 +616,9 @@ adv7511_detect(struct adv7511 *adv7511)
 	unsigned int val;
 	bool hpd;
 	int ret;
+	struct device *dev = &adv7511->i2c_main->dev;
 
+	dev_dbg(dev, ">>> %s\n", __func__);
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
 	if (ret < 0)
 		return connector_status_disconnected;
@@ -627,6 +629,7 @@ adv7511_detect(struct adv7511 *adv7511)
 		status = connector_status_disconnected;
 
 	hpd = adv7511_hpd(adv7511);
+	dev_dbg(dev, "hpd: %d, status: %s, powered: %d\n", hpd, (status == connector_status_connected) ? "connected" : "disconnected", adv7511->powered);
 
 	/* The chip resets itself when the cable is disconnected, so in case
 	 * there is a pending HPD interrupt and the cable is connected there was
