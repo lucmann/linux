@@ -60,6 +60,10 @@ static const struct drm_mode_config_funcs kirin_drm_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
+static const struct drm_mode_config_helper_funcs kirin_drm_mode_config_helper_funcs = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail,
+};
+
 static void kirin_drm_mode_config_init(struct drm_device *dev)
 {
 	dev->mode_config.min_width = 0;
@@ -69,6 +73,7 @@ static void kirin_drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_height = 2048;
 
 	dev->mode_config.funcs = &kirin_drm_mode_config_funcs;
+	dev->mode_config.helper_private = &kirin_drm_mode_config_helper_funcs;
 }
 
 static int kirin_drm_kms_init(struct drm_device *dev)
