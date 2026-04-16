@@ -786,6 +786,17 @@ static const struct adv7511 *bridge_to_adv7511_const(const struct drm_bridge *br
 	return container_of(bridge, struct adv7511, bridge);
 }
 
+static void adv7511_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
+{
+	struct adv7511 *adv = bridge_to_adv7511(bridge);
+
+	if (adv->powered)
+		return;
+
+	adv7511_power_on(adv);
+}
+
 static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
 					 struct drm_atomic_commit *state)
 {
@@ -793,8 +804,6 @@ static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
-
-	adv7511_power_on(adv);
 
 	connector = drm_atomic_get_new_connector_for_encoder(state, bridge->encoder);
 	if (WARN_ON(!connector))
@@ -1006,6 +1015,7 @@ static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.detect = adv7511_bridge_detect,
 	.edid_read = adv7511_bridge_edid_read,
 
+	.atomic_pre_enable = adv7511_bridge_atomic_pre_enable,
 	.atomic_enable = adv7511_bridge_atomic_enable,
 	.atomic_disable = adv7511_bridge_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
