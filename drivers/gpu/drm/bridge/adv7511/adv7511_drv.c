@@ -787,11 +787,19 @@ static void adv7511_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 					 struct drm_atomic_state *state)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
+	unsigned int val;
+	int ret;
 
 	if (adv->powered)
 		return;
 
 	adv7511_power_on(adv);
+
+	/* Stability check of DSI PLL */
+	ret = regmap_read_poll_timeout(adv->regmap, ADV7511_REG_PLL_STATUS,
+									val, (val & BIT(0)), 1000, 30000);
+	if (ret)
+		DRM_WARN("PLL lock timeout after power on\n");
 }
 
 static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
