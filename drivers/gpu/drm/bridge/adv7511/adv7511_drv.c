@@ -832,9 +832,17 @@ static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
 static void adv7511_bridge_atomic_disable(struct drm_bridge *bridge,
 					  struct drm_atomic_commit *state)
 {
+}
+
+static void adv7511_bridge_atomic_post_disable(struct drm_bridge *bridge,
+					  struct drm_atomic_state *state)
+{
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
 	adv7511_power_off(adv);
+
+	/* Clear the current mode to avoid wrong mode detection on next enable */
+	memset(&adv->curr_mode, 0, sizeof(adv->curr_mode));
 }
 
 static enum drm_mode_status
@@ -1023,6 +1031,7 @@ static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.atomic_pre_enable = adv7511_bridge_atomic_pre_enable,
 	.atomic_enable = adv7511_bridge_atomic_enable,
 	.atomic_disable = adv7511_bridge_atomic_disable,
+	.atomic_post_disable = adv7511_bridge_atomic_post_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
