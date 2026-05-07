@@ -595,6 +595,9 @@ static const struct drm_edid *adv7511_edid_read(struct adv7511 *adv7511,
 					(adv7511->i2c_edid->addr << 1);
 
 		__adv7511_power_on(adv7511);
+		
+		/* Wait for edid ready */
+		msleep(200);
 
 		/* Reset the EDID_I2C_ADDR register as it might be cleared */
 		regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
@@ -616,9 +619,8 @@ adv7511_detect(struct adv7511 *adv7511)
 	unsigned int val;
 	bool hpd;
 	int ret;
-	struct device *dev = &adv7511->i2c_main->dev;
 
-	dev_dbg(dev, ">>> %s\n", __func__);
+	DRM_INFO(">>> %s\n", __func__);
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
 	if (ret < 0)
 		return connector_status_disconnected;
@@ -629,7 +631,7 @@ adv7511_detect(struct adv7511 *adv7511)
 		status = connector_status_disconnected;
 
 	hpd = adv7511_hpd(adv7511);
-	dev_dbg(dev, "hpd: %d, status: %s, powered: %d\n", hpd, (status == connector_status_connected) ? "connected" : "disconnected", adv7511->powered);
+	DRM_INFO("hpd: %d, status: %s, powered: %d\n", hpd, (status == connector_status_connected) ? "connected" : "disconnected", adv7511->powered);
 
 	/* The chip resets itself when the cable is disconnected, so in case
 	 * there is a pending HPD interrupt and the cable is connected there was
@@ -787,19 +789,14 @@ static void adv7511_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 					 struct drm_atomic_state *state)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
-	unsigned int val;
-	int ret;
 
 	if (adv->powered)
 		return;
 
 	adv7511_power_on(adv);
 
-	/* Stability check of DSI PLL */
-	ret = regmap_read_poll_timeout(adv->regmap, ADV7511_REG_PLL_STATUS,
-									val, (val & BIT(0)), 1000, 30000);
-	if (ret)
-		DRM_WARN("PLL lock timeout after power on\n");
+	/* Wait for adv7535 ready */
+	msleep(200);
 }
 
 static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
@@ -839,10 +836,10 @@ static void adv7511_bridge_atomic_post_disable(struct drm_bridge *bridge,
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
-	adv7511_power_off(adv);
+	if (!adv->powered)
+		return;
 
-	/* Clear the current mode to avoid wrong mode detection on next enable */
-	memset(&adv->curr_mode, 0, sizeof(adv->curr_mode));
+	adv7511_power_off(adv);
 }
 
 static enum drm_mode_status
