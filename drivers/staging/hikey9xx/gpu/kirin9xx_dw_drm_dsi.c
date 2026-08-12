@@ -1555,22 +1555,19 @@ static int dw_drm_encoder_init(struct device *dev,
 
 	drm_encoder_helper_add(encoder, &dw_encoder_helper_funcs);
 
-	ret = drm_of_find_panel_or_bridge(np, 1 /* port */, 0 /* endpoint */, NULL /* panel */, &bridge);	
-	if (ret) {
-		DRM_ERROR("failed to find external panel or bridge\n");
+	bridge = of_drm_get_bridge_by_endpoint(np, 1 /* port */, 0 /* endpoint */);
+	if (IS_ERR(bridge)) {
+		ret = PTR_ERR(bridge);
+		DRM_ERROR("failed to find external bridge: %d\n", ret);
 		drm_encoder_cleanup(encoder);
 		return ret;
 	}
 
 	dsi->bridge = bridge;
-	ret = devm_drm_bridge_add(dev, bridge);
-	if (ret) {
-		DRM_ERROR("failed to add external bridge\n");
-		return ret;
-	}
 
 	/* associate the bridge to dsi encoder */
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
+	drm_bridge_put(bridge);
 	if (ret) {
 		DRM_ERROR("failed to attach external bridge\n");
 		drm_encoder_cleanup(encoder);
