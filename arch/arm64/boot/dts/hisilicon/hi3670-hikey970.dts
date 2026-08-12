@@ -113,6 +113,13 @@
 		"[AP_GPS_REF_CLK]",
 		"[I2C3_SCL]",
 		"[I2C3_SDA]";
+
+	usb-hub-reset {
+		gpio-hog;
+		gpios = <3 0>;
+		output-high;
+		line-name = "USB_HUB_RESET_N";
+	};
 };
 
 &gpio1 {
@@ -170,6 +177,13 @@
 		"[UART1_RXD]", /* LSEC pin 13: DEBUG_UART6_RXD */
 		"[UART1_TXD]", /* LSEC pin 11: DEBUG_UART6_TXD */
 		"[SOC_GPS_UART3_CTS_N]"; /* TP2304 */
+
+	usb-switch-sel {
+		gpio-hog;
+		gpios = <2 0>;
+		output-high;
+		line-name = "USB_SW_SEL_HOST";
+	};
 };
 
 &gpio5 {
@@ -367,6 +381,13 @@
 		"[SPI0_SCLK]", /* LSEC pin 8: GPIO_213_SPI2_CLK */
 		"[SPI0_DIN]", /* LSEC pin 10: GPIO_214_SPI2_DI */
 		"[SPI0_DOUT]"; /* LSEC pin 14: GPIO_215_SPI2_DO */
+
+	typec-vbus {
+		gpio-hog;
+		gpios = <1 0>;
+		output-high;
+		line-name = "TYPEC_VBUS_EN";
+	};
 };
 
 &gpio27 {
