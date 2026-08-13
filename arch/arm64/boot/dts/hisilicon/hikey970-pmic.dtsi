@@ -63,6 +63,8 @@
 					regulator-name = "ldo17";
 					regulator-min-microvolt = <2500000>;
 					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+					regulator-boot-on;
 				};
 
 				ldo33: ldo33 { /* PEX8606 */
