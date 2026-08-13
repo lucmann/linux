@@ -839,6 +839,7 @@
 				phy-names = "usb3-phy";
 				dr_mode = "host";
 				phy_type = "utmi";
+				snps,ref-clock-period-ns = <52>;
 				snps,dis_enblslpm_quirk;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_u3_susphy_quirk;
