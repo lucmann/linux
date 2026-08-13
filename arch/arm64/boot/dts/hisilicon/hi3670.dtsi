@@ -833,6 +833,8 @@
 			dwc3: dwc3@ff100000 {
 				compatible = "snps,dwc3";
 				reg = <0x0 0xff100000 0x0 0x100000>;
+				clocks = <&crg_ctrl HI3670_CLK_GATE_ABB_USB>;
+				clock-names = "ref";
 				interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb_phy>;
