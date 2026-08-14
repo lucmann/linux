@@ -18,6 +18,7 @@
 #include "../host/xhci-caps.h"
 #include "../host/xhci-plat.h"
 #include "core.h"
+#include "io.h"
 
 #define XHCI_HCSPARAMS1		0x4
 #define XHCI_PORTSC_BASE	0x400
@@ -67,6 +68,7 @@ static void dwc3_xhci_plat_start(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev;
 	struct dwc3 *dwc;
+	u32 reg;
 
 	if (!usb_hcd_is_primary_hcd(hcd))
 		return;
@@ -75,6 +77,12 @@ static void dwc3_xhci_plat_start(struct usb_hcd *hcd)
 	dwc = dev_get_drvdata(pdev->dev.parent);
 
 	dwc3_enable_susphy(dwc, true);
+
+	if (dwc->dis_split_quirk) {
+		reg = dwc3_readl(dwc, DWC3_GUCTL3);
+		reg |= DWC3_GUCTL3_SPLITDISABLE;
+		dwc3_writel(dwc, DWC3_GUCTL3, reg);
+	}
 }
 
 static const struct xhci_plat_priv dwc3_xhci_plat_quirk = {
