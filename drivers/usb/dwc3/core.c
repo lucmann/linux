@@ -1619,6 +1619,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 static int dwc3_core_init_mode(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
+	u32 reg;
 	int ret;
 	int i;
 
@@ -1648,6 +1649,12 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		ret = dwc3_host_init(dwc);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to initialize host\n");
+
+		if (dwc->dis_split_quirk) {
+			reg = dwc3_readl(dwc, DWC3_GUCTL3);
+			reg |= DWC3_GUCTL3_SPLITDISABLE;
+			dwc3_writel(dwc, DWC3_GUCTL3, reg);
+		}
 		break;
 	case USB_DR_MODE_OTG:
 		INIT_WORK(&dwc->drd_work, __dwc3_set_mode);
