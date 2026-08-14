@@ -1650,10 +1650,16 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to initialize host\n");
 
+		dev_info(dev, "host-mode: dis_split_quirk=%d revision=0x%08x GUCTL3=0x%08x\n",
+			 dwc->dis_split_quirk, dwc->revision,
+			 dwc3_readl(dwc, DWC3_GUCTL3));
+
 		if (dwc->dis_split_quirk) {
 			reg = dwc3_readl(dwc, DWC3_GUCTL3);
 			reg |= DWC3_GUCTL3_SPLITDISABLE;
 			dwc3_writel(dwc, DWC3_GUCTL3, reg);
+			dev_info(dev, "host-mode: GUCTL3 after SPLITDISABLE=0x%08x\n",
+				 dwc3_readl(dwc, DWC3_GUCTL3));
 		}
 		break;
 	case USB_DR_MODE_OTG:
