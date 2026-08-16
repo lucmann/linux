@@ -542,6 +542,14 @@ static void dss_crtc_enable(struct drm_crtc *crtc,
 			return;
 	}
 
+	/* Re-init LDI/DBUF/DPP on every enable, symmetric with the
+	 * dpe_deinit() in dss_power_down(). Without this, a DPMS
+	 * blank->unblank (active toggles, mode unchanged) skips
+	 * mode_set_nofb() and never re-runs dpe_init(), leaving the
+	 * LDI disabled after wake-up.
+	 */
+	dpe_init(acrtc);
+
 	acrtc->enable = true;
 	drm_crtc_vblank_on(crtc);
 }
