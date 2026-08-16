@@ -305,8 +305,6 @@ static void dss_ldi_set_mode(struct dss_crtc *acrtc)
 		DRM_ERROR("failed to set pixel clock\n");
 	else
 		adj_mode->clock = clk_Hz / 1000;
-
-	dpe_init(acrtc);
 }
 
 static int dss_power_up(struct dss_crtc *acrtc)
@@ -361,6 +359,14 @@ static int dss_power_up(struct dss_crtc *acrtc)
 	dpe_interrupt_clear(acrtc);
 	dpe_irq_enable(acrtc);
 	dpe_interrupt_unmask(acrtc);
+
+	/* Re-init LDI/DBUF/DPP on every power-up, symmetric with the
+	 * dpe_deinit() in dss_power_down(). Without this, a DPMS
+	 * blank->unblank (active toggles, mode unchanged) skips
+	 * mode_set_nofb() and never re-runs dpe_init(), leaving the
+	 * LDI disabled after wake-up.
+	 */
+	dpe_init(acrtc);
 
 	ctx->power_on = true;
 
