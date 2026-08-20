@@ -1451,7 +1451,9 @@ static void dsi_encoder_enable(struct drm_encoder *encoder)
 	if (dsi->panel)
 		drm_panel_prepare(dsi->panel);
 
-	/*dw_dsi_set_mode(dsi, DSI_VIDEO_MODE);*/
+	DRM_INFO("dsi enable done: MODE_CFG=0x%x PWR_UP=0x%x PHY_STATUS=0x%x\n",
+		 readl(ctx->base + MODE_CFG), readl(ctx->base + PWR_UP),
+		 readl(ctx->base + PHY_STATUS));
 
 	/* turn on panel's back light */
 	if (dsi->panel)

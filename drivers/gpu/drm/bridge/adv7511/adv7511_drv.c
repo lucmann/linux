@@ -794,9 +794,6 @@ static void adv7511_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 		return;
 
 	adv7511_power_on(adv);
-
-	/* Wait for adv7535 ready */
-	msleep(200);
 }
 
 static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
@@ -818,6 +815,14 @@ static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
 	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
 	if (WARN_ON(!crtc_state))
 		return;
+
+	/* Wait for the ADV7535 DSI RX PLL to lock. This runs AFTER the DSI
+	 * host/encoder has started (atomic_enable is after the encoder .enable
+	 * in the enable chain), so the DSI clock is present for the PLL to lock
+	 * onto. The old msleep() in atomic_pre_enable() ran before the DSI clock
+	 * started and was a no-op on re-enable.
+	 */
+	msleep(200);
 
 	adv7511_set_config_csc(adv, connector, adv->rgb);
 

@@ -823,6 +823,50 @@ void hisifb_mctl_sw_clr(struct dss_crtc *acrtc)
 	DRM_INFO("-.\n");
 }
 
+/* Wait for the LDI vactive0_end interrupt (one completed frame) after the
+ * RDMA/OVL planes have been programmed and the LDI re-enabled. If the
+ * pipeline is stuck (e.g. after a clock glitch or a blank/wake cycle), the
+ * vactive never completes; restart it by disabling the LDI, software-clearing
+ * the MCTL state machine and re-enabling the LDI -- the recovery sequence
+ * used by the vendor 4.9 driver. Removed upstream in commit b793ce7fc0e5
+ * ("remove wait for VACTIVE IRQ") for a performance issue, but that removal
+ * also dropped this recovery, leaving a permanently black screen on DPMS
+ * wake-up (the LDI underflows with an empty pipeline and never restarts).
+ */
+static int hisi_dss_wait_for_complete(struct dss_crtc *acrtc)
+{
+	int ret = 0;
+	u32 times = 0;
+	u32 prev_vactive0_end = 0;
+	struct dss_hw_ctx *ctx = acrtc->ctx;
+
+	prev_vactive0_end = ctx->vactive0_end_flag;
+
+REDO:
+	ret = wait_event_interruptible_timeout(ctx->vactive0_end_wq,
+					       (prev_vactive0_end != ctx->vactive0_end_flag),
+					       msecs_to_jiffies(300));
+	if (ret == -ERESTARTSYS) {
+		if (times < 50) {
+			times++;
+			mdelay(10);
+			goto REDO;
+		}
+	}
+
+	if (ret <= 0) {
+		disable_ldi(acrtc);
+		hisifb_mctl_sw_clr(acrtc);
+		DRM_ERROR("wait_for vactive0_end_flag timeout! ret=%d.\n", ret);
+
+		ret = -ETIMEDOUT;
+	} else {
+		ret = 0;
+	}
+
+	return ret;
+}
+
 void hisi_fb_pan_display(struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
@@ -899,6 +943,7 @@ void hisi_fb_pan_display(struct drm_plane *plane)
 	hisi_dss_unflow_handler(ctx, true);
 
 	enable_ldi(acrtc);
+	hisi_dss_wait_for_complete(acrtc);
 }
 
 void hisi_dss_online_play(struct kirin_fbdev *fbdev, struct drm_plane *plane,
@@ -967,4 +1012,5 @@ void hisi_dss_online_play(struct kirin_fbdev *fbdev, struct drm_plane *plane,
 	hisi_dss_unflow_handler(ctx, true);
 
 	enable_ldi(acrtc);
+	hisi_dss_wait_for_complete(acrtc);
 }

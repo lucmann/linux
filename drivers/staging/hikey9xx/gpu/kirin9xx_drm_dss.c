@@ -276,7 +276,15 @@ static u64 dss_calculate_clock(struct dss_crtc *acrtc,
 	return clk_Hz;
 }
 
-static void dss_ldi_set_mode(struct dss_crtc *acrtc)
+/* Program PPLL7 and re-parent dss_pxl0_clk onto it: the "pixel PLL lock"
+ * half of dss_ldi_set_mode(). dss_power_down() re-parents the pixel clock
+ * onto the always-on PLL0 (238 MHz fallback) and kills PPLL7's regulator,
+ * so every wake-up must re-lock the PLL before anything enables the LDI.
+ * Kept separate from dpe_init() so that a DPMS blank->unblank (mode
+ * unchanged, mode_set_nofb() skipped) locks the PLL without starting the
+ * LDI before the planes are re-programmed.
+ */
+static void dss_ldi_pll_lock(struct dss_crtc *acrtc)
 {
 	struct drm_display_mode *adj_mode = &acrtc->base.state->adjusted_mode;
 	struct drm_display_mode *mode = &acrtc->base.state->mode;
@@ -305,6 +313,12 @@ static void dss_ldi_set_mode(struct dss_crtc *acrtc)
 		DRM_ERROR("failed to set pixel clock\n");
 	else
 		adj_mode->clock = clk_Hz / 1000;
+}
+
+static void dss_ldi_set_mode(struct dss_crtc *acrtc)
+{
+	dss_ldi_pll_lock(acrtc);
+	dpe_init(acrtc);
 }
 
 static int dss_power_up(struct dss_crtc *acrtc)
@@ -360,13 +374,23 @@ static int dss_power_up(struct dss_crtc *acrtc)
 	dpe_irq_enable(acrtc);
 	dpe_interrupt_unmask(acrtc);
 
-	/* Re-init LDI/DBUF/DPP on every power-up, symmetric with the
-	 * dpe_deinit() in dss_power_down(). Without this, a DPMS
-	 * blank->unblank (active toggles, mode unchanged) skips
-	 * mode_set_nofb() and never re-runs dpe_init(), leaving the
-	 * LDI disabled after wake-up.
+	/* Re-program PPLL7 and switch dss_pxl0_clk back onto it. dss_power_down()
+	 * (via dpe_regulator_disable()) re-parents dss_pxl0_clk onto the
+	 * always-on PLL0 (238 MHz fallback) and then kills PPLL7's regulator.
+	 * On a DPMS wake the mode is unchanged so mode_set_nofb() is not
+	 * re-run, and dpe_regulator_enable() only restores PPLL7 power without
+	 * re-programming it. If the LDI were (re-)enabled at the 238 MHz
+	 * fallback clock it underflows and the pipeline never recovers (black
+	 * screen with backlight), so lock the PLL here, before anything else.
+	 * dpe_init()/enable_ldi() deliberately stay out of power_up: the LDI
+	 * must only be started by hisi_fb_pan_display() after the RDMA/OVL
+	 * planes have been re-programmed (matches the vendor driver).
 	 */
-	dpe_init(acrtc);
+	DRM_INFO("power_up: pxl0_clk=%lu before PPLL7 re-lock\n",
+		 clk_get_rate(ctx->dss_pxl0_clk));
+	dss_ldi_pll_lock(acrtc);
+	DRM_INFO("power_up: pxl0_clk=%lu after PPLL7 re-lock\n",
+		 clk_get_rate(ctx->dss_pxl0_clk));
 
 	ctx->power_on = true;
 
@@ -446,6 +470,11 @@ static irqreturn_t dss_irq_handler(int irq, void *data)
 
 	isr_s1 &= ~(readl(dss_base + GLB_CPU_PDP_INT_MSK));
 	isr_s2 &= ~(readl(dss_base + DSS_LDI0_OFFSET + LDI_CPU_ITF_INT_MSK));
+
+	if (isr_s2 & BIT_VACTIVE0_END) {
+		ctx->vactive0_end_flag++;
+		wake_up_interruptible_all(&ctx->vactive0_end_wq);
+	}
 
 	if (isr_s2 & BIT_VSYNC) {
 		ctx->vsync_timestamp = ktime_get();
@@ -548,6 +577,11 @@ static void dss_crtc_enable(struct drm_crtc *crtc,
 			return;
 	}
 
+	/* NOTE: the pixel PLL was already re-locked by dss_power_up() and the
+	 * LDI must NOT be enabled here: it is started by hisi_fb_pan_display()
+	 * once the planes are programmed, matching the vendor driver.
+	 */
+
 	acrtc->enable = true;
 	drm_crtc_vblank_on(crtc);
 }
@@ -581,8 +615,24 @@ static void dss_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct dss_crtc *acrtc = to_dss_crtc(crtc);
 	struct dss_hw_ctx *ctx = acrtc->ctx;
 
+	/* Do NOT re-power-up on a disable commit. dss_crtc_atomic_disable()
+	 * (earlier in commit_modeset_disables) already powered the DSS down.
+	 * Re-powering here leaves ctx->power_on=true, so the next enable skips
+	 * dss_power_up() and never re-runs dpe_init() after the pixel clock is
+	 * re-locked. That bogus re-init-at-blank (at the 238 MHz fallback clock)
+	 * is exactly what triggers the persistent "ldi underflow" on every DPMS
+	 * blank and the black screen on wake.
+	 */
+	if (!crtc->state->active)
+		return;
+
 	if (!ctx->power_on)
 		(void)dss_power_up(acrtc);
+	/* NOTE: dss_power_up() already re-locked the pixel PLL. Do NOT call
+	 * dss_ldi_set_mode()/dpe_init() here: the LDI must only be started by
+	 * hisi_fb_pan_display() after the planes are programmed, otherwise it
+	 * enables with an empty pipeline and underflows (black screen on wake).
+	 */
 }
 
 static void dss_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -707,11 +757,23 @@ static void dss_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_atomic_commit *old_state)
 {
 	struct drm_plane_state *state = plane->state;
+	struct dss_plane *aplane = to_dss_plane(plane);
+	struct dss_crtc *acrtc = aplane->acrtc;
+	struct dss_hw_ctx *ctx = acrtc->ctx;
 
 	if (!state->fb) {
 		state->visible = false;
 		return;
 	}
+
+	/* Skip register programming when the DPE is powered down (CRTC being
+	 * disabled / DPMS off). hisi_fb_pan_display() writes RDMA/OVL/MCTL
+	 * registers, which raise a synchronous external abort on a clock-gated
+	 * DPE. The DPE gets re-powered (dpe_init) on the next enable via
+	 * dss_crtc_atomic_begin().
+	 */
+	if (!ctx->power_on)
+		return;
 
 	hisi_fb_pan_display(plane);
 }

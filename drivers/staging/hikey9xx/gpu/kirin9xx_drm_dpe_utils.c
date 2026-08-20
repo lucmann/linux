@@ -582,7 +582,7 @@ void dpe_interrupt_unmask(struct dss_crtc *acrtc)
 	writel(unmask, dss_base + GLB_CPU_PDP_INT_MSK);
 
 	unmask = ~0;
-	unmask &= ~(BIT_VSYNC | BIT_LDI_UNFLOW);
+	unmask &= ~(BIT_VSYNC | BIT_VACTIVE0_END | BIT_LDI_UNFLOW);
 
 	writel(unmask, dss_base + DSS_LDI0_OFFSET + LDI_CPU_ITF_INT_MSK);
 }
@@ -1019,8 +1019,6 @@ int dpe_regulator_enable(struct dss_hw_ctx *ctx)
 
 int dpe_regulator_disable(struct dss_hw_ctx *ctx)
 {
-	int ret = 0;
-
 	if (!ctx) {
 		DRM_ERROR("NULL ptr.\n");
 		return -EINVAL;
@@ -1031,13 +1029,25 @@ int dpe_regulator_disable(struct dss_hw_ctx *ctx)
 		dpe_set_common_clk_rate_on_pll0(ctx);
 	}
 
-	ret = regulator_disable(ctx->dpe_regulator);
-	if (ret != 0) {
-		DRM_ERROR("dpe regulator_disable failed, error=%d!\n", ret);
-		return -EINVAL;
-	}
+	/*
+	 * Do NOT power-cycle the DPE on blank. Disabling the LDO3 regulator
+	 * destroys the OVL/RDMA/MCTL register state programmed by
+	 * hisi_fb_pan_display(). On wake-up dpe_init() only re-initializes
+	 * LDI/DBUF/DPP and enables the LDI BEFORE the planes are re-programmed
+	 * (pan_display runs later in the atomic commit), so the LDI starts
+	 * fetching with an empty pipeline and underflows; the pipeline never
+	 * recovers afterwards (black screen with backlight), not even via a
+	 * full modeset -- only a reboot fixes it. Cold boot is fine because
+	 * UEFI left the DPE powered with a valid pipeline.
+	 *
+	 * The vendor 4.9 driver keeps the DPE powered across blank (its
+	 * regulator_disable() call was commented out). Do the same: the clock
+	 * gating in dss_power_down() still saves power while the register
+	 * state survives for the next wake-up.
+	 */
+	//ret = regulator_disable(ctx->dpe_regulator);
 
-	return ret;
+	return 0;
 }
 
 int mediacrg_regulator_enable(struct dss_hw_ctx *ctx)
