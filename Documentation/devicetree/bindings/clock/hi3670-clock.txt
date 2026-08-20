@@ -16,6 +16,18 @@ Required Properties:
 	- "hisilicon,hi3670-media1-crg"
 	- "hisilicon,hi3670-media2-crg"
 
+- The GPU and other DVFS clocks are owned by the on-SoC MCU firmware and are
+  exposed through a stub clock controller:
+
+	- "hisilicon,hi3670-stub-clk"
+
+  Required properties for the stub clock controller:
+  - compatible: "hisilicon,hi3670-stub-clk"
+  - reg: two regions:
+	[0] frequency read-back registers
+	[1] frequency vote (set) registers
+  - #clock-cells: should be 1.
+
 - reg: physical base address of the controller and length of memory mapped
   region.
 

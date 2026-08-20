@@ -1152,12 +1152,26 @@ static const struct panfrost_compatible mediatek_mt8370_data = {
 	.gpu_quirks = BIT(GPU_QUIRK_FORCE_AARCH64_PGTABLE),
 };
 
+/*
+ * Hi3670 (Kirin 970): the vendor kbase driver ran this G72's MMU in
+ * AARCH64_4K mode (it selects mmu_mode from BASE_HW_FEATURE_AARCH64_MMU);
+ * on this SoC integration the legacy Mali-LPAE walk faults with
+ * DATA_INVALID_FAULT on every job submission.
+ */
+static const struct panfrost_compatible hisilicon_hi3670_data = {
+	.num_supplies = ARRAY_SIZE(default_supplies) - 1,
+	.supply_names = default_supplies,
+	.gpu_quirks = BIT(GPU_QUIRK_FORCE_AARCH64_PGTABLE),
+};
+
 static const struct of_device_id dt_match[] = {
 	/* Set first to probe before the generic compatibles */
 	{ .compatible = "amlogic,meson-gxm-mali",
 	  .data = &amlogic_data, },
 	{ .compatible = "amlogic,meson-g12a-mali",
 	  .data = &amlogic_data, },
+	{ .compatible = "hisilicon,hi3670-mali",
+	  .data = &hisilicon_hi3670_data, },
 	{ .compatible = "renesas,r9a08g046-mali", .data = &default_pm_rt_data },
 	{ .compatible = "renesas,r9a09g047-mali", .data = &default_pm_rt_data },
 	{ .compatible = "arm,mali-t604", .data = &default_data, },

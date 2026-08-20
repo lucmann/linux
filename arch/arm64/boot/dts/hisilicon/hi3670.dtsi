@@ -848,5 +848,61 @@
 				snps,dis-del-phy-power-chg-quirk;
 			};
 		};
+
+		gpu: gpu@e82c0000 {
+			compatible = "hisilicon,hi3670-mali", "arm,mali-bifrost";
+			reg = <0x0 0xe82c0000 0x0 0x4000>;
+			interrupts = <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu";
+			clocks = <&stub_clock HI3670_CLK_STUB_GPU>;
+			operating-points-v2 = <&gpu_opp_table>;
+			status = "disabled";
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-103750000 {
+					opp-hz = /bits/ 64 <103750000>;
+					opp-microvolt = <550000>;
+				};
+				opp-150909000 {
+					opp-hz = /bits/ 64 <150909000>;
+					opp-microvolt = <650000>;
+				};
+				opp-237143000 {
+					opp-hz = /bits/ 64 <237143000>;
+					opp-microvolt = <650000>;
+				};
+				opp-332000000 {
+					opp-hz = /bits/ 64 <332000000>;
+					opp-microvolt = <650000>;
+				};
+				opp-415000000 {
+					opp-hz = /bits/ 64 <415000000>;
+					opp-microvolt = <750000>;
+				};
+				opp-550000000 {
+					opp-hz = /bits/ 64 <550000000>;
+					opp-microvolt = <750000>;
+				};
+				opp-667000000 {
+					opp-hz = /bits/ 64 <667000000>;
+					opp-microvolt = <850000>;
+				};
+				opp-767000000 {
+					opp-hz = /bits/ 64 <767000000>;
+					opp-microvolt = <950000>;
+				};
+			};
+		};
+	};
+
+	stub_clock: stub_clock@e896b500 {
+		compatible = "hisilicon,hi3670-stub-clk";
+		reg = <0x0 0xe896b500 0x0 0x0100>,
+		      <0x0 0xfff31000 0x0 0x1000>;
+		#clock-cells = <1>;
 	};
 };
