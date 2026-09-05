@@ -184,7 +184,7 @@ static struct drm_driver kirin_drm_driver = {
 	.fops = &kirin_drm_fops,
 	DRM_GEM_DMA_DRIVER_OPS,
 	DRM_FBDEV_DMA_DRIVER_OPS,
-	.name = "kirin9xx",
+	.name = "kirin",
 	.desc = "Hisilicon Kirin9xx SoCs' DRM Driver",
 	.major = 1,
 	.minor = 0,
